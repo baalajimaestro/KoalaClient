@@ -9,6 +9,7 @@ import useAddChat from '@hooks/useAddChat';
 const NewChat = ({ folder }: { folder?: string }) => {
   const { t } = useTranslation();
   const addChat = useAddChat();
+  const bottomMessageRef = useStore((state) => state.bottomMessageRef);
   const generating = useStore((state) => state.generating);
 
   return (
@@ -23,7 +24,10 @@ const NewChat = ({ folder }: { folder?: string }) => {
           : 'text-custom-white gap-2 mb-2 border border-custom-white/20'
       }`}
       onClick={() => {
-        if (!generating) addChat(folder);
+        if (!generating) {
+          addChat(folder);
+          bottomMessageRef?.current?.focus();
+        }
       }}
       title={String(t('newChat'))}
     >

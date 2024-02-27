@@ -7,14 +7,12 @@ import {
   MessageInterface,
 } from '@type/chat';
 import { roles } from '@type/chat';
-import {
-  _defaultChatConfig,
-  defaultModel,
-  modelOptions,
-} from '@constants/chat';
+import { _defaultChatConfig } from '@constants/chat';
 import { ExportV1, OpenAIChat } from '@type/export';
 
-export const validateAndFixChats = (chats: any): chats is ChatInterface[] => {
+export const validateAndFixChats = (
+  chats: ChatInterface[]
+): chats is ChatInterface[] => {
   if (!Array.isArray(chats)) return false;
 
   for (const chat of chats) {
@@ -61,13 +59,10 @@ const validateAndFixChatConfig = (config: ConfigInterface) => {
   }
   if (!(typeof config.frequency_penalty === 'number')) return false;
 
-  if (!config.model) config.model = defaultModel;
-  if (!modelOptions.includes(config.model)) return false;
-
   return true;
 };
 
-export const isLegacyImport = (importedData: any) => {
+export const isLegacyImport = (importedData: unknown) => {
   if (Array.isArray(importedData)) return true;
   return false;
 };
@@ -88,7 +83,7 @@ export const validateFolders = (
 };
 
 export const validateExportV1 = (data: ExportV1): data is ExportV1 => {
-  return validateAndFixChats(data.chats) && validateFolders(data.folders);
+  return validateAndFixChats(data.chats ?? []) && validateFolders(data.folders);
 };
 
 // Convert OpenAI chat format to KoalaClient format

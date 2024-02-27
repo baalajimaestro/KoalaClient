@@ -1,9 +1,9 @@
-import { MessageInterface, ModelChoice, TotalTokenUsed } from '@type/chat';
+import { MessageInterface, ModelDefinition, TotalTokenUsed } from '@type/chat';
 
+import { useCallback } from 'react';
 import useStore from '@store/store';
 
 import { Tiktoken } from '@dqbd/tiktoken/lite';
-import { modelMaxToken } from '@constants/chat';
 const cl100k_base = await import('@dqbd/tiktoken/encoders/cl100k_base.json');
 
 const encoder = new Tiktoken(
@@ -17,10 +17,27 @@ const encoder = new Tiktoken(
   cl100k_base.pat_str
 );
 
+export const tokenCostToCost = (
+  tokenCost: TotalTokenUsed[number],
+  model: number,
+  modelDefs: ModelDefinition[]
+) => {
+  if (!tokenCost) return 0;
+
+  const modelDef = modelDefs[model];
+  if (!modelDef) return 0;
+
+  const completionCost =
+    (modelDef.completion_cost_1000 / 1000) * tokenCost.completionTokens;
+  const promptCost =
+    (modelDef.completion_cost_1000 / 1000) * tokenCost.promptTokens;
+  return completionCost + promptCost;
+};
+
 // https://github.com/dqbd/tiktoken/issues/23#issuecomment-1483317174
 export const getChatGPTEncoding = (
   messages: MessageInterface[],
-  model: ModelChoice
+  model: string
 ) => {
   const isGpt3 = model === 'gpt-3.5-turbo';
 
@@ -39,33 +56,20 @@ export const getChatGPTEncoding = (
   return encoder.encode(serialized, 'all');
 };
 
-const countTokens = (messages: MessageInterface[], model: ModelChoice) => {
+const countTokens = (messages: MessageInterface[], model: string) => {
   if (messages.length === 0) return 0;
   return getChatGPTEncoding(messages, model).length;
 };
 
 export const limitMessageTokens = (
   messages: MessageInterface[],
-  context_limit: number = 4096,
-  model: ModelChoice,
-  max_model_token: number = modelMaxToken[model],
-  token_limit: number
+  model: string,
+  max_context: number = 4096,
+  max_tokens: number = 2048
 ): MessageInterface[] => {
   const limitedMessages: MessageInterface[] = [];
+  max_context -= max_tokens;
   let tokenCount = 0;
-
-  if (max_model_token < context_limit) {
-    context_limit = max_model_token;
-  }
-
-  let wholeTokenCount = 0;
-  for (let i = 0; i < messages.length; i++) {
-    wholeTokenCount += countTokens([messages[i]], model);
-  }
-
-  if (token_limit < context_limit + wholeTokenCount) {
-    context_limit = max_model_token - token_limit;
-  }
 
   const isSystemFirstMessage = messages[0]?.role === 'system';
   let retainSystemMessage = false;
@@ -73,7 +77,7 @@ export const limitMessageTokens = (
   // Check if the first message is a system message and if it fits within the token limit
   if (isSystemFirstMessage) {
     const systemTokenCount = countTokens([messages[0]], model);
-    if (systemTokenCount < context_limit) {
+    if (systemTokenCount < max_context) {
       tokenCount += systemTokenCount;
       retainSystemMessage = true;
     }
@@ -83,7 +87,7 @@ export const limitMessageTokens = (
   // until the token limit is reached (excludes first message)
   for (let i = messages.length - 1; i >= 1; i--) {
     const count = countTokens([messages[i]], model);
-    if (count + tokenCount > context_limit) break;
+    if (count + tokenCount > max_context) break;
     tokenCount += count;
     limitedMessages.unshift({ ...messages[i] });
   }
@@ -95,7 +99,7 @@ export const limitMessageTokens = (
   } else if (!isSystemFirstMessage) {
     // Check if the first message (non-system) can fit within the limit
     const firstMessageTokenCount = countTokens([messages[0]], model);
-    if (firstMessageTokenCount + tokenCount < context_limit) {
+    if (firstMessageTokenCount + tokenCount < max_context) {
       limitedMessages.unshift({ ...messages[0] });
     }
   }
@@ -103,26 +107,36 @@ export const limitMessageTokens = (
   return limitedMessages;
 };
 
-export const updateTotalTokenUsed = (
-  model: ModelChoice,
-  promptMessages: MessageInterface[],
-  completionMessage: MessageInterface
-) => {
-  const setTotalTokenUsed = useStore.getState().setTotalTokenUsed;
-  const updatedTotalTokenUsed: TotalTokenUsed = JSON.parse(
-    JSON.stringify(useStore.getState().totalTokenUsed)
+export const useUpdateTotalTokenUsed = () => {
+  const setTotalTokenUsed = useStore((state) => state.setTotalTokenUsed);
+  const totalTokenUsed = useStore((state) => state.totalTokenUsed);
+  const modelDefs = useStore((state) => state.modelDefs);
+
+  const updateTotalTokenUsed = useCallback(
+    (
+      model: number,
+      promptMessages: MessageInterface[],
+      completionMessage: MessageInterface
+    ) => {
+      const updatedTotalTokenUsed = JSON.parse(JSON.stringify(totalTokenUsed));
+      const modelName = modelDefs[model].model;
+
+      const newPromptTokens = countTokens(promptMessages, modelName);
+      const newCompletionTokens = countTokens([completionMessage], modelName);
+      const { promptTokens = 0, completionTokens = 0 } =
+        updatedTotalTokenUsed[model] ?? {};
+
+      updatedTotalTokenUsed[model] = {
+        promptTokens: promptTokens + newPromptTokens,
+        completionTokens: completionTokens + newCompletionTokens,
+      };
+
+      setTotalTokenUsed(updatedTotalTokenUsed);
+    },
+    [setTotalTokenUsed, totalTokenUsed, modelDefs]
   );
 
-  const newPromptTokens = countTokens(promptMessages, model);
-  const newCompletionTokens = countTokens([completionMessage], model);
-  const { promptTokens = 0, completionTokens = 0 } =
-    updatedTotalTokenUsed[model] ?? {};
-
-  updatedTotalTokenUsed[model] = {
-    promptTokens: promptTokens + newPromptTokens,
-    completionTokens: completionTokens + newCompletionTokens,
-  };
-  setTotalTokenUsed(updatedTotalTokenUsed);
+  return updateTotalTokenUsed;
 };
 
 export default countTokens;

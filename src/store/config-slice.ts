@@ -19,6 +19,7 @@ export interface ConfigSlice {
   markdownMode: boolean;
   countTotalTokens: boolean;
   totalTokenUsed: TotalTokenUsed;
+  costOfDeleted: number;
   setOpenConfig: (openConfig: boolean) => void;
   setTheme: (theme: Theme) => void;
   setAutoTitle: (autoTitle: boolean) => void;
@@ -34,14 +35,15 @@ export interface ConfigSlice {
   setMarkdownMode: (markdownMode: boolean) => void;
   setCountTotalTokens: (countTotalTokens: boolean) => void;
   setTotalTokenUsed: (totalTokenUsed: TotalTokenUsed) => void;
+  setCostOfDeleted: (costOfDeleted: number) => void;
 }
 
-export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
+export const createConfigSlice: StoreSlice<ConfigSlice> = (set) => ({
   openConfig: false,
   theme: 'dark',
   hideMenuOptions: false,
   hideSideMenu: false,
-  autoTitle: false,
+  autoTitle: true,
   closeToTray: false,
   enterToSubmit: true,
   confirmEditSubmission: true,
@@ -52,6 +54,7 @@ export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
   markdownMode: true,
   countTotalTokens: false,
   totalTokenUsed: {},
+  costOfDeleted: 0,
   setOpenConfig: (openConfig: boolean) => {
     set((prev: ConfigSlice) => ({
       ...prev,
@@ -140,6 +143,12 @@ export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
     set((prev: ConfigSlice) => ({
       ...prev,
       totalTokenUsed: totalTokenUsed,
+    }));
+  },
+  setCostOfDeleted: (costOfDeleted: number) => {
+    set((prev: ConfigSlice) => ({
+      ...prev,
+      costOfDeleted: costOfDeleted,
     }));
   },
 });

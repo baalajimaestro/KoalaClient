@@ -1,7 +1,6 @@
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useStore from '@store/store';
-import isElectron from '@utils/electron';
 import useSubmit from '@hooks/useSubmit';
 
 import { ChatInterface } from '@type/chat';
@@ -17,11 +16,15 @@ const EditView = ({
   setIsEdit,
   messageIndex,
   sticky,
+  role,
+  setEditingMessageIndex,
 }: {
   content: string;
   setIsEdit: React.Dispatch<React.SetStateAction<boolean>>;
   messageIndex: number;
   sticky?: boolean;
+  role: string;
+  setEditingMessageIndex: (index: number | null) => void;
 }) => {
   const inputRole = useStore((state) => state.inputRole);
   const setChats = useStore((state) => state.setChats);
@@ -29,9 +32,15 @@ const EditView = ({
   const [cursorPosition, setCursorPosition] = useState<number>(0);
   const [_content, _setContent] = useState<string>(content);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const textareaRef = React.createRef<HTMLTextAreaElement>();
-
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const setBottomMessageRef = useStore((state) => state.setBottomMessageRef);
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (sticky) {
+      setBottomMessageRef(textareaRef);
+    }
+  }, [textareaRef]);
 
   const resetTextAreaHeight = () => {
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -70,6 +79,7 @@ const EditView = ({
       setIsEdit(false);
     }
     setChats(updatedChats);
+    setEditingMessageIndex(null);
   };
 
   const { handleSubmit } = useSubmit();
@@ -94,6 +104,7 @@ const EditView = ({
       setIsEdit(false);
     }
     setChats(updatedChats);
+    setEditingMessageIndex(null);
     handleSubmit();
   };
 
@@ -145,6 +156,9 @@ const EditView = ({
         cursorPosition={cursorPosition}
         _setContent={_setContent}
         messageIndex={messageIndex}
+        role={role}
+        content={content}
+        setEditingMessageIndex={setEditingMessageIndex}
       />
       {isModalOpen && (
         <PopupModal
@@ -168,6 +182,9 @@ const EditViewButtons = memo(
     cursorPosition,
     _setContent,
     messageIndex,
+    role,
+    content,
+    setEditingMessageIndex,
   }: {
     sticky?: boolean;
     handleGenerate: () => void;
@@ -177,12 +194,20 @@ const EditViewButtons = memo(
     cursorPosition: number;
     _setContent: React.Dispatch<React.SetStateAction<string>>;
     messageIndex: number;
+    role: string;
+    content: string;
+    setEditingMessageIndex: (index: number | null) => void;
   }) => {
     const { t } = useTranslation();
     const generating = useStore.getState().generating;
     const confirmEditSubmission = useStore(
       (state) => state.confirmEditSubmission
     );
+
+    const handleCancel = () => {
+      setIsEdit(false);
+      setEditingMessageIndex(null);
+    };
 
     const handleEditGenerate = () => {
       if (generating) {
@@ -214,7 +239,7 @@ const EditViewButtons = memo(
             </button>
           )}
 
-          {sticky || (
+          {!sticky && role === 'user' && content != '' && (
             <button
               className='btn relative mr-2 btn-primary'
               onClick={() => {
@@ -248,7 +273,7 @@ const EditViewButtons = memo(
               className={`btn relative ${
                 messageIndex % 2 ? 'btn-neutral' : 'btn-neutral-dark'
               }`}
-              onClick={() => setIsEdit(false)}
+              onClick={() => handleCancel()}
               aria-label={t('cancel') as string}
             >
               <div className='flex items-center justify-center gap-2'>
@@ -259,13 +284,11 @@ const EditViewButtons = memo(
         </div>
         <div className='flex-1 flex items-center justify-end'>
           {sticky && <TokenCount />}
-          {isElectron() && (
-            <WhisperRecord
-              cursorPosition={cursorPosition}
-              _setContent={_setContent}
-              messageIndex={messageIndex}
-            />
-          )}
+          <WhisperRecord
+            cursorPosition={cursorPosition}
+            _setContent={_setContent}
+            messageIndex={messageIndex}
+          />
           <CommandPrompt
             cursorPosition={cursorPosition}
             _setContent={_setContent}

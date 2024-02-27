@@ -18,6 +18,7 @@ const CommandPrompt = ({
 }) => {
   const { t } = useTranslation();
   const prompts = useStore((state) => state.prompts);
+  const generating = useStore((state) => state.generating);
   const [_prompts, _setPrompts] = useState<Prompt[]>(prompts);
   const [input, setInput] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,9 +55,17 @@ const CommandPrompt = ({
       <button
         className={`btn ${
           messageIndex % 2 ? 'btn-neutral' : 'btn-neutral-dark'
-        } btn-small inline-flex h-8 w-8 items-center justify-center`}
+        } btn-small inline-flex h-8 w-8 items-center justify-center ${
+          generating
+            ? 'cursor-not-allowed opacity-40'
+            : 'cursor-pointer opacity-100'
+        }`}
         aria-label='prompt library'
-        onClick={() => setDropDown(!dropDown)}
+        onClick={() => {
+          if (!generating) {
+            setDropDown(!dropDown);
+          }
+        }}
       >
         /
       </button>
@@ -81,14 +90,14 @@ const CommandPrompt = ({
               className='px-4 py-2 hover:bg-neutral-dark cursor-pointer text-start w-full'
               onClick={() => {
                 _setContent((prev) => {
-                  let startContent = prev.slice(0, cursorPosition);
-                  let endContent = prev.slice(cursorPosition);
+                  const startContent = prev.slice(0, cursorPosition);
+                  const endContent = prev.slice(cursorPosition);
 
-                  let paddedStart =
+                  const paddedStart =
                     !startContent.endsWith('\n') && startContent.length > 0
                       ? '\n'
                       : '';
-                  let paddedEnd =
+                  const paddedEnd =
                     !endContent.startsWith('\n') && endContent.length > 0
                       ? '\n'
                       : '';

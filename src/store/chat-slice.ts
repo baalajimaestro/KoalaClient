@@ -1,5 +1,6 @@
 import { StoreSlice } from './store';
 import { ChatInterface, FolderCollection, MessageInterface } from '@type/chat';
+import { RefObject } from 'react';
 
 export interface ChatSlice {
   messages: MessageInterface[];
@@ -8,6 +9,11 @@ export interface ChatSlice {
   generating: boolean;
   error: string;
   folders: FolderCollection;
+  bottomMessageRef: RefObject<HTMLTextAreaElement> | null;
+  isRecording: boolean;
+  setBottomMessageRef: (
+    bottomMessageRef: RefObject<HTMLTextAreaElement> | null
+  ) => void;
   setMessages: (messages: MessageInterface[]) => void;
   setChats: (chats: ChatInterface[]) => void;
   setCurrentChatIndex: (currentChatIndex: number) => void;
@@ -15,14 +21,31 @@ export interface ChatSlice {
   setError: (error: string) => void;
   setFolders: (folders: FolderCollection) => void;
   setConfirmEditSubmission: (confirmEditSubmission: boolean) => void;
+  setIsRecording: (isRecording: boolean) => void;
 }
 
-export const createChatSlice: StoreSlice<ChatSlice> = (set, get) => ({
+export const createChatSlice: StoreSlice<ChatSlice> = (set) => ({
   messages: [],
   currentChatIndex: -1,
   generating: false,
   error: '',
   folders: {},
+  bottomMessageRef: null,
+  isRecording: false,
+  setIsRecording: (isRecording: boolean) => {
+    set((prev: ChatSlice) => ({
+      ...prev,
+      isRecording: isRecording,
+    }));
+  },
+  setBottomMessageRef: (
+    bottomMessageRef: RefObject<HTMLTextAreaElement> | null
+  ) => {
+    set((prev: ChatSlice) => ({
+      ...prev,
+      bottomMessageRef: bottomMessageRef,
+    }));
+  },
   setMessages: (messages: MessageInterface[]) => {
     set((prev: ChatSlice) => ({
       ...prev,
